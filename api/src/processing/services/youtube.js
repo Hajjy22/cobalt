@@ -57,7 +57,10 @@ const hlsCodecList = {
     }
 }
 
-const clientsWithNoCipher = ['IOS', 'ANDROID', 'YTSTUDIO_ANDROID', 'YTMUSIC_ANDROID'];
+const clientsWithNoCipher = [
+    'IOS', 'ANDROID', 'ANDROID_VR', 'VISIONOS',
+    'YTSTUDIO_ANDROID', 'YTMUSIC_ANDROID'
+];
 
 const videoQualities = [144, 240, 360, 480, 720, 1080, 1440, 2160, 4320];
 
