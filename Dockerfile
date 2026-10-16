@@ -13,10 +13,16 @@ RUN pnpm install --prod --frozen-lockfile
 
 RUN pnpm deploy --filter=@imput/cobalt-api --prod /prod/api
 
+RUN mkdir -p /app/.git/logs \
+    && printf 'ref: refs/heads/main\n' > /app/.git/HEAD \
+    && printf '0000000000000000000000000000000000000000 6776a92e231578237023c1012331efda24fb9248 Railway <railway@local> 0 +0000\tbuild\n' > /app/.git/logs/HEAD \
+    && printf '[remote "origin"]\n\turl = https://github.com/Hajjy22/cobalt.git\n' > /app/.git/config
+
 FROM base AS api
 WORKDIR /app
 
 COPY --from=build --chown=node:node /prod/api /app
+COPY --from=build --chown=node:node /app/.git /app/.git
 
 USER node
 
