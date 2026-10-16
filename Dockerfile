@@ -16,7 +16,7 @@ RUN pnpm deploy --filter=@imput/cobalt-api --prod /prod/api
 
 RUN mkdir -p /app/.git/logs \
     && printf 'ref: refs/heads/main\n' > /app/.git/HEAD \
-    && printf '0000000000000000000000000000000000000000 6776a92e231578237023c1012331efda24fb9248 Railway <railway@local> 0 +0000\tbuild\n' > /app/.git/logs/HEAD \
+    && printf '0000000000000000000000000000000000000000 3ce9b3436554e0224e596ceab868cd31a0e1258e Railway <railway@local> 0 +0000\tbuild\n' > /app/.git/logs/HEAD \
     && printf '[remote "origin"]\n\turl = https://github.com/Hajjy22/cobalt.git\n' > /app/.git/config
 
 FROM base AS api
