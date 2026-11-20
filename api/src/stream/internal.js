@@ -8,19 +8,20 @@ const min = (a, b) => a < b ? a : b;
 
 const serviceNeedsChunks = new Set(["youtube", "vk"]);
 
-async function* readChunks(streamInfo, size) {
-    let read = 0n;
-    while (read < size) {
+async function* readChunks(streamInfo, start = 0n, endExclusive) {
+    let read = start;
+    while (read < endExclusive) {
         if (streamInfo.controller.signal.aborted) {
             throw new Error("controller aborted");
         }
 
+        const chunkEnd = min(read + CHUNK_SIZE, endExclusive) - 1n;
         let chunk, attempts = 0;
         while (true) {
             chunk = await request(streamInfo.url, {
                 headers: {
                     ...getHeaders(streamInfo.service),
-                    Range: `bytes=${read}-${read + CHUNK_SIZE}`
+                    Range: `bytes=${read}-${chunkEnd}`
                 },
                 dispatcher: streamInfo.dispatcher,
                 signal: streamInfo.controller.signal,
@@ -41,7 +42,7 @@ async function* readChunks(streamInfo, size) {
             break;
         }
 
-        const expected = min(CHUNK_SIZE, size - read);
+        const expected = min(CHUNK_SIZE, endExclusive - read);
         const received = BigInt(chunk.headers['content-length']);
 
         if (received < expected / 2n) {
@@ -52,6 +53,9 @@ async function* readChunks(streamInfo, size) {
             yield data;
         }
 
+        if (received <= 0n) {
+            break;
+        }
         read += received;
     }
 }
@@ -88,7 +92,37 @@ async function handleChunkedStream(streamInfo, res) {
             return cleanup();
         }
 
-        const generator = readChunks(streamInfo, size);
+        let start = 0n;
+        let end = size - 1n;
+        let isRange = false;
+        const rangeHeader = streamInfo.headers?.get('range');
+        if (rangeHeader) {
+            const match = /^bytes=(\d*)-(\d*)$/i.exec(String(rangeHeader).trim());
+            if (!match || (!match[1] && !match[2])) {
+                res.status(416);
+                res.setHeader('content-range', `bytes */${size}`);
+                return res.end();
+            }
+            if (match[1] && match[2]) {
+                start = BigInt(match[1]);
+                end = min(BigInt(match[2]), size - 1n);
+            } else if (match[1]) {
+                start = BigInt(match[1]);
+                end = size - 1n;
+            } else {
+                const suffix = BigInt(match[2]);
+                start = suffix >= size ? 0n : size - suffix;
+                end = size - 1n;
+            }
+            if (start >= size || start > end) {
+                res.status(416);
+                res.setHeader('content-range', `bytes */${size}`);
+                return res.end();
+            }
+            isRange = true;
+        }
+
+        const generator = readChunks(streamInfo, start, end + 1n);
 
         const abortGenerator = () => {
             generator.return();
@@ -99,9 +133,15 @@ async function handleChunkedStream(streamInfo, res) {
 
         const stream = Readable.from(generator);
 
-        for (const headerName of ['content-type', 'content-length']) {
-            const headerValue = req.headers.get(headerName);
-            if (headerValue) res.setHeader(headerName, headerValue);
+        res.setHeader('accept-ranges', 'bytes');
+        const contentType = req.headers.get('content-type');
+        if (contentType) res.setHeader('content-type', contentType);
+        if (isRange) {
+            res.status(206);
+            res.setHeader('content-range', `bytes ${start}-${end}/${size}`);
+            res.setHeader('content-length', (end - start + 1n).toString());
+        } else {
+            res.setHeader('content-length', size.toString());
         }
 
         pipe(stream, res, cleanup);

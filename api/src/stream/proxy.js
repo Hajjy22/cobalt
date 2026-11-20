@@ -18,11 +18,15 @@ export default async function (streamInfo, res) {
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         res.setHeader('Content-disposition', contentDisposition(streamInfo.filename));
 
+        const requestHeaders = {
+            ...getHeaders(streamInfo.service),
+        };
+        if (streamInfo.range) {
+            requestHeaders.Range = streamInfo.range;
+        }
+
         const { body: stream, headers, statusCode } = await request(streamInfo.urls, {
-            headers: {
-                ...getHeaders(streamInfo.service),
-                Range: streamInfo.range
-            },
+            headers: requestHeaders,
             signal: abortController.signal,
             maxRedirections: 16,
             dispatcher: defaultAgent,
@@ -30,7 +34,7 @@ export default async function (streamInfo, res) {
 
         res.status(statusCode);
 
-        for (const headerName of ['accept-ranges', 'content-type', 'content-length']) {
+        for (const headerName of ['accept-ranges', 'content-type', 'content-length', 'content-range']) {
             if (headers[headerName]) {
                 res.setHeader(headerName, headers[headerName]);
             }
