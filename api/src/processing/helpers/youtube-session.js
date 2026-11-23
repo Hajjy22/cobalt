@@ -41,7 +41,12 @@ const loadSession = async () => {
 
     const newSession = await fetch(
         sessionServerUrl,
-        { method: 'POST', dispatcher: defaultAgent }
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+            dispatcher: defaultAgent
+        }
     ).then(a => a.json());
 
     validateSession(newSession);
