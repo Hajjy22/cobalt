@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { ProxyAgent } from "undici";
 
 import { env } from "../config.js";
 import { createResponse } from "../processing/request.js";
@@ -31,6 +32,8 @@ import bluesky from "./services/bluesky.js";
 import newgrounds from "./services/newgrounds.js";
 
 let freebind;
+const outboundProxyUrl = process.env.OUTBOUND_PROXY_URL?.trim();
+const outboundProxyDispatcher = outboundProxyUrl ? new ProxyAgent(outboundProxyUrl) : undefined;
 
 export default async function({ host, patternMatch, params, authType }) {
     const { url } = params;
@@ -44,6 +47,8 @@ export default async function({ host, patternMatch, params, authType }) {
 
         requestIP = freebind.ip.random(env.freebindCIDR);
         dispatcher = freebind.dispatcherFromIP(requestIP, { strict: false });
+    } else if (host === "youtube" && outboundProxyDispatcher) {
+        dispatcher = outboundProxyDispatcher;
     }
 
     try {
