@@ -106,6 +106,15 @@ function parseYouTubeEnvCookies(raw) {
     if (!raw || typeof raw !== 'string') return [];
     let text = raw.trim();
     if (!text) return [];
+    // Support base64-encoded Netscape / JSON / Cookie header strings
+    if (!text.includes('\t') && !text.includes('; ') && !text.startsWith('{') && !text.startsWith('[')) {
+        try {
+            const decoded = Buffer.from(text, 'base64').toString('utf8').trim();
+            if (decoded.includes('\t') || decoded.includes('# Netscape') || decoded.startsWith('{') || decoded.startsWith('[')) {
+                text = decoded;
+            }
+        } catch {}
+    }
     // Support literal \n from single-line env vars
     if (!text.includes('\n') && text.includes('\\n')) {
         text = text.replace(/\\n/g, '\n');
