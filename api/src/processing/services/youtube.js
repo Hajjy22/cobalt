@@ -263,29 +263,51 @@ export default async function (o) {
     }
 
     let info;
-    try {
-        info = await yt.getBasicInfo(o.id, { client: innertubeClient });
-    } catch (e) {
-        if (e?.info) {
-            let errorInfo;
-            try { errorInfo = JSON.parse(e?.info); } catch {}
+    const tryGetBasicInfo = async (clientName) => {
+        try {
+            return await yt.getBasicInfo(o.id, { client: clientName });
+        } catch (e) {
+            if (e?.info) {
+                let errorInfo;
+                try { errorInfo = JSON.parse(e?.info); } catch {}
 
-            if (errorInfo?.reason === "This video is private") {
-                return { error: "content.video.private" };
+                if (errorInfo?.reason === "This video is private") {
+                    return { _earlyError: { error: "content.video.private" } };
+                }
+                if (["INVALID_ARGUMENT", "UNAUTHENTICATED"].includes(errorInfo?.error?.status)) {
+                    return { _earlyError: { error: "youtube.api_error" } };
+                }
             }
-            if (["INVALID_ARGUMENT", "UNAUTHENTICATED"].includes(errorInfo?.error?.status)) {
-                return { error: "youtube.api_error" };
+
+            if (e?.message === "This video is unavailable") {
+                return { _earlyError: { error: "content.video.unavailable" } };
             }
+
+            return { _earlyError: { error: "fetch.fail" } };
         }
+    };
 
-        if (e?.message === "This video is unavailable") {
-            return { error: "content.video.unavailable" };
-        }
-
-        return { error: "fetch.fail" };
-    }
-
+    info = await tryGetBasicInfo(innertubeClient);
+    if (info?._earlyError) return info._earlyError;
     if (!info) return { error: "fetch.fail" };
+
+    // If the default IOS client hits YouTube's bot check on datacenter IPs,
+    // try less-restricted Innertube clients before giving up.
+    if (
+        info.playability_status?.status === "LOGIN_REQUIRED"
+        && info.playability_status?.reason?.endsWith("bot")
+        && !o.innertubeClient
+    ) {
+        for (const fallbackClient of ["TV_EMBEDDED", "ANDROID_VR", "WEB_EMBEDDED"]) {
+            if (fallbackClient === innertubeClient) continue;
+            const retryInfo = await tryGetBasicInfo(fallbackClient);
+            if (retryInfo && !retryInfo._earlyError && retryInfo.playability_status?.status === "OK") {
+                info = retryInfo;
+                innertubeClient = fallbackClient;
+                break;
+            }
+        }
+    }
 
     const playability = info.playability_status;
     const basicInfo = info.basic_info;
