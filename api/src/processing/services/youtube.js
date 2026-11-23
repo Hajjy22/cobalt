@@ -288,14 +288,14 @@ export default async function (o) {
     if (info?._earlyError) return info._earlyError;
     if (!info) return { error: "fetch.fail" };
 
-    // If the default IOS client hits YouTube's bot check on datacenter IPs,
-    // try less-restricted Innertube clients before giving up.
+    // If the initial client hits YouTube's bot check on datacenter IPs,
+    // try authenticated WEB / TV / MWEB / embedded Innertube clients before giving up.
     if (
         info.playability_status?.status === "LOGIN_REQUIRED"
         && info.playability_status?.reason?.endsWith("bot")
         && !o.innertubeClient
     ) {
-        for (const fallbackClient of ["TV_EMBEDDED", "ANDROID_VR", "WEB_EMBEDDED"]) {
+        for (const fallbackClient of ["WEB", "TV", "MWEB", "TV_EMBEDDED", "ANDROID_VR", "WEB_EMBEDDED"]) {
             if (fallbackClient === innertubeClient) continue;
             const retryInfo = await tryGetBasicInfo(fallbackClient);
             if (retryInfo && !retryInfo._earlyError && retryInfo.playability_status?.status === "OK") {
