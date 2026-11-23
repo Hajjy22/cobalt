@@ -35,9 +35,10 @@ RUN apk add --no-cache curl tar \
 
 COPY --from=build --chown=node:node /prod/api /app
 COPY --from=build --chown=node:node /app/.git /app/.git
-COPY --chmod=755 start-cobalt.sh /usr/local/bin/start-cobalt.sh
+COPY start-cobalt.sh /usr/local/bin/start-cobalt.sh
+RUN sed -i 's/\r$//' /usr/local/bin/start-cobalt.sh && chmod 755 /usr/local/bin/start-cobalt.sh
 
 USER node
 
 EXPOSE 9000
-CMD [ "/usr/local/bin/start-cobalt.sh" ]
+CMD [ "sh", "/usr/local/bin/start-cobalt.sh" ]
