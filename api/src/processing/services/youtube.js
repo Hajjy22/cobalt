@@ -77,7 +77,7 @@ const cloneInnertube = async (customFetch, useSession) => {
         throw "no_session_tokens";
     }
 
-    if (!innertube || shouldRefreshPlayer) {
+    if (!innertube || shouldRefreshPlayer || (useSession && !innertube.session?.po_token)) {
         let player_id;
         if (env.ytPlayerIds) {
             player_id = env.ytPlayerIds[
@@ -205,19 +205,16 @@ export default async function (o) {
         innertubeClient = "IOS";
     }
 
-    // iOS client doesn't have adaptive formats of resolution >1080p,
-    // so we use the WEB_EMBEDDED client instead for those cases
-    let useSession =
-        env.ytSessionServer && (
-            (
-                !useHLS
-                && innertubeClient === "IOS"
-                && (
-                    (quality > 1080 && o.codec !== "h264")
-                    || (quality > 1080 && o.codec !== "vp9")
-                )
-            )
-        );
+    // Use yt-session-generator PO-token + visitor_data for all qualities (including <=1080p)
+    // whenever available, so datacenter IPs don't fall back to unauthenticated IOS.
+    let useSession = Boolean(
+        env.ytSessionServer
+        && !useHLS
+        && !o.innertubeClient
+        && !env.customInnertubeClient
+        && innertubeClient === "IOS"
+        && (getYouTubeSession()?.potoken || quality > 1080)
+    );
 
     // we can get subtitles reliably only from the iOS client
     if (o.subtitleLang) {
