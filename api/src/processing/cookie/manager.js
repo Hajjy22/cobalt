@@ -102,6 +102,40 @@ export const setup = async (path) => {
     }
 }
 
+function parseYouTubeEnvCookies(raw) {
+    if (!raw || typeof raw !== 'string') return [];
+    let text = raw.trim();
+    if (!text) return [];
+    // Support literal \n from single-line env vars
+    if (!text.includes('\n') && text.includes('\\n')) {
+        text = text.replace(/\\n/g, '\n');
+    }
+    // Support JSON array or { youtube: [...] }
+    if (text.startsWith('{') || text.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(text);
+            const list = Array.isArray(parsed) ? parsed : parsed?.youtube;
+            if (Array.isArray(list) && list.every(c => typeof c === 'string')) {
+                return list;
+            }
+        } catch {}
+    }
+    // Support Netscape cookies.txt (tab-separated, 7 columns)
+    if (text.includes('\t')) {
+        const pairs = [];
+        for (const line of text.split(/\r?\n/)) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const cols = trimmed.split('\t');
+            if (cols.length >= 7 && cols[5]) {
+                pairs.push(`${cols[5]}=${cols[6] ?? ''}`);
+            }
+        }
+        if (pairs.length) return [pairs.join('; ')];
+    }
+    return [text];
+}
+
 export function getCookie(service) {
     if (!VALID_SERVICES.has(service)) {
         console.error(
@@ -109,6 +143,13 @@ export function getCookie(service) {
             + ' if adding a new cookie type, include it there.'
         );
         return;
+    }
+
+    if ((!cookies[service] || !cookies[service].length) && service === 'youtube' && process.env.YOUTUBE_COOKIES) {
+        const parsed = parseYouTubeEnvCookies(process.env.YOUTUBE_COOKIES);
+        if (parsed.length) {
+            cookies[service] = parsed;
+        }
     }
 
     if (!cookies[service] || !cookies[service].length) return;
