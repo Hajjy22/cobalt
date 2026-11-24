@@ -22,16 +22,14 @@ RUN mkdir -p /app/.git/logs \
 FROM base AS api
 WORKDIR /app
 
-RUN apk add --no-cache curl tar \
+RUN apk add --no-cache curl unzip \
     && ARCH="$(uname -m)" \
     && case "$ARCH" in x86_64) GOARCH=amd64 ;; aarch64) GOARCH=arm64 ;; *) GOARCH=amd64 ;; esac \
-    && curl -fsSL "https://github.com/ViRb3/wgcf/releases/download/v2.3.1/wgcf_2.3.1_linux_${GOARCH}" -o /usr/local/bin/wgcf \
-    && chmod +x /usr/local/bin/wgcf \
-    && curl -fsSL "https://github.com/pufferffish/wireproxy/releases/download/v1.1.3/wireproxy_linux_${GOARCH}.tar.gz" -o /tmp/wireproxy.tar.gz \
-    && tar -xzf /tmp/wireproxy.tar.gz -C /usr/local/bin wireproxy \
-    && chmod +x /usr/local/bin/wireproxy \
-    && rm -f /tmp/wireproxy.tar.gz \
-    && apk del curl tar
+    && curl -fsSL "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_linux_${GOARCH}.zip" -o /tmp/usque.zip \
+    && unzip -q /tmp/usque.zip usque -d /usr/local/bin \
+    && chmod +x /usr/local/bin/usque \
+    && rm -f /tmp/usque.zip \
+    && apk del curl unzip
 
 COPY --from=build --chown=node:node /prod/api /app
 COPY --from=build --chown=node:node /app/.git /app/.git

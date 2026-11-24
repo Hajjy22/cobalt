@@ -1,10 +1,12 @@
-import { Agent, request } from "undici";
+import { Agent, ProxyAgent, request } from "undici";
 import { create as contentDisposition } from "content-disposition-header";
 
 import { destroyInternalStream } from "./manage.js";
 import { getHeaders, closeRequest, closeResponse, pipe } from "./shared.js";
 
 const defaultAgent = new Agent();
+const outboundProxyUrl = process.env.OUTBOUND_PROXY_URL?.trim();
+const youtubeProxyAgent = outboundProxyUrl ? new ProxyAgent(outboundProxyUrl) : undefined;
 
 export default async function (streamInfo, res) {
     const abortController = new AbortController();
@@ -29,7 +31,7 @@ export default async function (streamInfo, res) {
             headers: requestHeaders,
             signal: abortController.signal,
             maxRedirections: 16,
-            dispatcher: defaultAgent,
+            dispatcher: (streamInfo.service === "youtube" && youtubeProxyAgent) ? youtubeProxyAgent : defaultAgent,
         });
 
         res.status(statusCode);
