@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { randomBytes } from "crypto";
 import { strict as assert } from "assert";
 import { setMaxListeners } from "node:events";
+import { ProxyAgent } from "undici";
 
 import { env } from "../config.js";
 import { closeRequest } from "./shared.js";
@@ -13,6 +14,8 @@ import { zip } from "../misc/utils.js";
 
 // optional dependency
 const freebind = env.freebindCIDR && await import('freebind').catch(() => {});
+const outboundProxyUrl = process.env.OUTBOUND_PROXY_URL?.trim();
+const outboundProxyDispatcher = outboundProxyUrl ? new ProxyAgent(outboundProxyUrl) : undefined;
 
 const streamCache = new Store('streams');
 
@@ -142,6 +145,8 @@ export function createInternalStream(url, obj = {}, isSubtitles) {
     let dispatcher = obj.dispatcher;
     if (obj.requestIP) {
         dispatcher = freebind?.dispatcherFromIP(obj.requestIP, { strict: false })
+    } else if (!dispatcher && outboundProxyDispatcher && String(obj.service || "").startsWith("youtube")) {
+        dispatcher = outboundProxyDispatcher;
     }
 
     const streamID = nanoid();

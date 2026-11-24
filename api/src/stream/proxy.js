@@ -27,11 +27,12 @@ export default async function (streamInfo, res) {
             requestHeaders.Range = streamInfo.range;
         }
 
+        const isLocalTunnel = typeof streamInfo.urls === "string" && streamInfo.urls.startsWith("http://127.0.0.1");
         const { body: stream, headers, statusCode } = await request(streamInfo.urls, {
             headers: requestHeaders,
             signal: abortController.signal,
             maxRedirections: 16,
-            dispatcher: (streamInfo.service === "youtube" && youtubeProxyAgent) ? youtubeProxyAgent : defaultAgent,
+            dispatcher: (!isLocalTunnel && streamInfo.service === "youtube" && youtubeProxyAgent) ? youtubeProxyAgent : defaultAgent,
         });
 
         res.status(statusCode);
